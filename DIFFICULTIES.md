@@ -16,3 +16,11 @@ Append an entry every time something genuinely broke, took longer than expected,
 ---
 
 *(entries begin below as they happen during the build)*
+
+## Prisma 7 removed `url`/`directUrl` from schema.prisma
+**When:** Phase 1, "Initialize Prisma, define schema, and run the initial migration"
+**What broke:** `npx prisma generate` failed with P1012 — `url` and `directUrl` datasource properties are no longer supported in schema files in Prisma 7.
+**Why:** Prisma 7 (installed as `latest` at 7.9.1) moved connection string configuration from `schema.prisma` to a new `prisma.config.ts` file. The architecture doc assumed Prisma 5/6-era syntax.
+**How diagnosed:** Error message was explicit about the new `prisma.config.ts` requirement and linked to migration docs.
+**Fix:** Pinned to Prisma 6 (`prisma@6`, `@prisma/client@6`) which still supports the `url`/`directUrl` syntax in the schema file, matching the architecture doc's schema exactly.
+**If I were doing it again:** Check the Prisma version's schema syntax before writing the schema file, or pin to a specific major version from the start.

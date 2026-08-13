@@ -13,3 +13,8 @@ Distinct from `DIFFICULTIES.md`: this is for things worth carrying into the *nex
 ---
 
 *(entries begin below as they happen during the build)*
+
+## Pin ORM major versions from day one
+**Context:** Prisma 7 shipped a breaking change to the schema config format while this project's architecture doc assumed Prisma 5/6 syntax.
+**What I learned:** Always pin ORM/framework dependencies to a specific major version in `package.json` from the first `npm install`, especially when the project has pre-written schema or config files. `@latest` on a fast-moving tool is a trap.
+**Where I'd apply it again:** Any greenfield project where the architecture was planned against a specific tool version — lock the dependency early.

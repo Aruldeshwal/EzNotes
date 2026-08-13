@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // pooled (pgbouncer) connection, used at runtime
+  directUrl = env("DIRECT_URL")     // direct connection, used only for migrations
+}
+
+enum AccessType {
+  PUBLIC
+  PASSWORD
+  ONE_TIME
+}
+
+enum ShareType {
+  READ_ONLY
+  COLLABORATIVE
+}
+
+enum Theme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+model UserSettings {
+  clerkUserId        String     @id @map("clerk_user_id")
+  defaultTheme       Theme      @default(SYSTEM) @map("default_theme")
+  defaultAccess      AccessType @default(PUBLIC) @map("default_access")
+  defaultExpiryHours Int?       @map("default_expiry_hours")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  @@map("user_settings")
+}
+
+model Note {
+  id           String      @id @default(cuid())
+  token        String      @unique                     // generated in app code, see lib/tokens.ts
+  clerkUserId  String      @map("clerk_user_id")
+  title        String
+  content      String      @db.Text                     // up to 100,000 chars, enforced at the app layer
+  shareType    ShareType   @default(READ_ONLY) @map("share_type")
+  accessType   AccessType  @default(PUBLIC) @map("access_type")
+  expiryDate   DateTime?   @map("expiry_date")           // always stored UTC — see architecture.md §8
+  passwordHash String?     @map("password_hash")
+  revoked      Boolean     @default(false)
+  consumedAt   DateTime?   @map("consumed_at")           // set when a ONE_TIME note is auto-consumed
+  viewCount    Int         @default(0) @map("view_count") // lifetime total, synced from Redis by QStash
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@index([clerkUserId])
+  @@index([expiryDate])
+  @@map("notes")
+}
+
+model NoteViewAggregate {
+  id        String   @id @default(cuid())
+  noteToken String   @map("note_token")                  // not an FK — see architecture.md design note
+  date      DateTime @db.Date
+  viewCount Int      @default(0) @map("view_count")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([noteToken, date])
+  @@index([noteToken])
+  @@map("note_view_aggregates")
+}
