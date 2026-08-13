@@ -12,7 +12,9 @@ export default clerkMiddleware(async (auth, req) => {
   if (pathname.startsWith('/share/')) {
     const { success } = await checkRateLimit('publicShareLoad', ip, 5, 60000);
     if (!success) {
-      return new NextResponse('Too Many Requests: Public share rate limit exceeded.', { status: 429 });
+      return new NextResponse('Too Many Requests: Public share rate limit exceeded.', {
+        status: 429,
+      });
     }
   } else if (pathname.includes('/content')) {
     const { success } = await checkRateLimit('collaborativePatches', ip, 5, 60000);
@@ -22,12 +24,15 @@ export default clerkMiddleware(async (auth, req) => {
   } else if (pathname.startsWith('/api/')) {
     const { success } = await checkRateLimit('globalApi', ip, 100, 60000);
     if (!success) {
-      return new NextResponse('Too Many Requests: Global API rate limit exceeded.', { status: 429 });
+      return new NextResponse('Too Many Requests: Global API rate limit exceeded.', {
+        status: 429,
+      });
     }
   }
 
   if (isProtectedRoute(req)) {
-    await auth.protect();
+    const signInUrl = new URL('/login', req.url).toString();
+    await auth.protect({ unauthenticatedUrl: signInUrl });
   }
 });
 
