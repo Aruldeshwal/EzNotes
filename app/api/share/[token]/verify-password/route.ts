@@ -75,10 +75,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     success: true,
     data: {
       id: note.id,
+      token: note.token,
       title: note.title,
       content: note.content,
       shareType: note.shareType,
       accessType: note.accessType,
+      expiryDate: note.expiryDate ? note.expiryDate.toISOString() : null,
+      revoked: note.revoked,
+      consumedAt: note.consumedAt ? note.consumedAt.toISOString() : null,
     },
   });
 }

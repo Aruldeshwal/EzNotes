@@ -10,7 +10,8 @@ const APP_SECRET = process.env.APP_SECRET || 'dev-fallback-secret-at-least-32-ch
  */
 
 export function deriveNoteSigningKey(noteId: string, createdAt: Date | string): Uint8Array {
-  const timeStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+  const d = typeof createdAt === 'string' ? new Date(createdAt) : createdAt;
+  const timeStr = isNaN(d.getTime()) ? String(createdAt) : d.toISOString();
   const hmac = crypto.createHmac('sha256', APP_SECRET);
   hmac.update(`${noteId}:${timeStr}`);
   return new Uint8Array(hmac.digest());
