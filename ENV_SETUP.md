@@ -11,6 +11,7 @@ All secrets live in `.env` (gitignored). `.env.example` below is what's actually
 | `CLERK_WEBHOOK_SECRET` | `/api/webhooks/clerk` | Used to verify webhook signatures |
 | `UPSTASH_REDIS_REST_URL` | `lib/redis.ts`, Edge Middleware | REST API, not raw TCP — required for Edge runtime compatibility |
 | `UPSTASH_REDIS_REST_TOKEN` | `lib/redis.ts`, Edge Middleware | |
+| `QSTASH_URL` | QStash Client | Optional base URL for regional QStash endpoints |
 | `QSTASH_TOKEN` | Enqueuing QStash messages | |
 | `QSTASH_CURRENT_SIGNING_KEY` | `/api/jobs/flush-views` | Verifies inbound QStash callback signatures |
 | `QSTASH_NEXT_SIGNING_KEY` | `/api/jobs/flush-views` | Used during QStash key rotation |
@@ -29,6 +30,7 @@ CLERK_WEBHOOK_SECRET="whsec_..."
 UPSTASH_REDIS_REST_URL="https://example.upstash.io"
 UPSTASH_REDIS_REST_TOKEN="..."
 
+QSTASH_URL="https://qstash.upstash.io"
 QSTASH_TOKEN="..."
 QSTASH_CURRENT_SIGNING_KEY="..."
 QSTASH_NEXT_SIGNING_KEY="..."
