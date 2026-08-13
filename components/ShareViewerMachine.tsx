@@ -96,13 +96,17 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
 
   // Client-side polling for collaborative notes per architecture.md §5.5 (every 4s)
   useEffect(() => {
-    if (note?.shareType === ShareType.COLLABORATIVE && !isEditing) {
+    if (
+      note?.shareType === ShareType.COLLABORATIVE &&
+      note?.accessType !== AccessType.ONE_TIME &&
+      !isEditing
+    ) {
       const interval = setInterval(() => {
         fetchNote();
       }, 4000);
       return () => clearInterval(interval);
     }
-  }, [note?.shareType, isEditing, fetchNote]);
+  }, [note?.shareType, note?.accessType, isEditing, fetchNote]);
 
   // Lockout countdown timer
   useEffect(() => {

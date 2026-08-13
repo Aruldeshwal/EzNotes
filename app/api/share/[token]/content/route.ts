@@ -40,24 +40,22 @@ export async function PATCH(
     return NextResponse.json({ error: 'Note not found' }, { status: 404 });
   }
 
-  if (note.revoked) {
-    return NextResponse.json({ error: 'Note is revoked' }, { status: 410 });
-  }
-
   if (note.shareType !== ShareType.COLLABORATIVE) {
     return NextResponse.json({ error: 'Note is read-only and does not allow edits' }, { status: 403 });
   }
 
-  // Auth check for password protected notes
-  if (note.accessType === AccessType.PASSWORD) {
+  // Auth check for password protected or one-time notes
+  if (note.accessType === AccessType.PASSWORD || note.accessType === AccessType.ONE_TIME) {
     const sessionCookie = await getNoteSessionCookie(token);
     if (!sessionCookie) {
       return NextResponse.json({ error: 'Unauthorized: Session cookie required' }, { status: 401 });
     }
     const session = await verifyNoteSessionJwt(sessionCookie, note.id, note.createdAt);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid session' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Invalid or expired session' }, { status: 401 });
     }
+  } else if (note.revoked) {
+    return NextResponse.json({ error: 'Note is revoked' }, { status: 410 });
   }
 
   // 1. Immediate Redis write-through

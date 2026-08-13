@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { acquireOneTimeLock, invalidateNoteCache } from '@/lib/redis';
 import { createNoteSessionJwt, setNoteSessionCookie } from '@/lib/auth';
-import { AccessType } from '@prisma/client';
+import { AccessType, ShareType } from '@prisma/client';
 
 export async function POST(
   req: NextRequest,
@@ -23,12 +23,21 @@ export async function POST(
   try {
     // Atomic DB correctness guarantee: row-level lock via UPDATE ... WHERE revoked = false
     const updatedNotes = await prisma.$queryRaw<
-      Array<{ id: string; token: string; created_at: Date; access_type: string; content: string; title: string; consumed_at: Date }>
+      Array<{
+        id: string;
+        token: string;
+        created_at: Date;
+        access_type: string;
+        share_type: string;
+        content: string;
+        title: string;
+        consumed_at: Date;
+      }>
     >`
       UPDATE notes
       SET revoked = true, consumed_at = NOW()
       WHERE token = ${token} AND revoked = false AND access_type = 'ONE_TIME'::"AccessType"
-      RETURNING id, token, created_at, access_type, content, title, consumed_at
+      RETURNING id, token, created_at, access_type, share_type, content, title, consumed_at
     `;
 
     if (!updatedNotes || updatedNotes.length === 0) {
@@ -53,6 +62,7 @@ export async function POST(
         token: note.token,
         title: note.title,
         content: note.content,
+        shareType: note.share_type as ShareType,
         accessType: AccessType.ONE_TIME,
         revoked: true,
         consumedAt: note.consumed_at ? new Date(note.consumed_at).toISOString() : new Date().toISOString(),
