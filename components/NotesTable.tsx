@@ -168,7 +168,9 @@ export const NotesTable: React.FC<NotesTableProps> = ({ initialNotes }) => {
                       {note.accessType}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-xs">{istExpiry}</td>
+                  <td className="px-6 py-4 text-slate-500 text-xs" suppressHydrationWarning>
+                    {istExpiry}
+                  </td>
                   <td className="px-6 py-4">
                     {note.revoked ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 rounded">
@@ -291,6 +293,7 @@ export const NotesTable: React.FC<NotesTableProps> = ({ initialNotes }) => {
                 <input
                   type="text"
                   readOnly
+                  suppressHydrationWarning
                   value={`${typeof window !== 'undefined' ? window.location.origin : ''}/share/${shareModalNote.token}`}
                   className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono focus:outline-none select-all"
                 />
