@@ -23,12 +23,12 @@ export async function POST(
   try {
     // Atomic DB correctness guarantee: row-level lock via UPDATE ... WHERE revoked = false
     const updatedNotes = await prisma.$queryRaw<
-      Array<{ id: string; token: string; created_at: Date; access_type: string; content: string; title: string }>
+      Array<{ id: string; token: string; created_at: Date; access_type: string; content: string; title: string; consumed_at: Date }>
     >`
       UPDATE notes
       SET revoked = true, consumed_at = NOW()
       WHERE token = ${token} AND revoked = false AND access_type = 'ONE_TIME'::"AccessType"
-      RETURNING id, token, created_at, access_type, content, title
+      RETURNING id, token, created_at, access_type, content, title, consumed_at
     `;
 
     if (!updatedNotes || updatedNotes.length === 0) {
@@ -50,10 +50,12 @@ export async function POST(
       success: true,
       data: {
         id: note.id,
+        token: note.token,
         title: note.title,
         content: note.content,
         accessType: AccessType.ONE_TIME,
         revoked: true,
+        consumedAt: note.consumed_at ? new Date(note.consumed_at).toISOString() : new Date().toISOString(),
       },
     });
   } catch (err) {
