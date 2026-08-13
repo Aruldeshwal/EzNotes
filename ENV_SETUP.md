@@ -9,6 +9,8 @@ All secrets live in `.env` (gitignored). `.env.example` below is what's actually
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk (client) | Safe to expose |
 | `CLERK_SECRET_KEY` | Clerk (server) | Never expose to the client |
 | `CLERK_WEBHOOK_SECRET` | `/api/webhooks/clerk` | Used to verify webhook signatures |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Clerk Routing | Custom sign-in route (`/login`) |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Clerk Routing | Custom sign-up route (`/register`) |
 | `UPSTASH_REDIS_REST_URL` | `lib/redis.ts`, Edge Middleware | REST API, not raw TCP — required for Edge runtime compatibility |
 | `UPSTASH_REDIS_REST_TOKEN` | `lib/redis.ts`, Edge Middleware | |
 | `QSTASH_URL` | QStash Client | Optional base URL for regional QStash endpoints |
@@ -26,6 +28,8 @@ DIRECT_URL="postgresql://user:password@ep-example.region.aws.neon.tech/dbname?ss
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
 CLERK_SECRET_KEY="sk_test_..."
 CLERK_WEBHOOK_SECRET="whsec_..."
+NEXT_PUBLIC_CLERK_SIGN_IN_URL="/login"
+NEXT_PUBLIC_CLERK_SIGN_UP_URL="/register"
 
 UPSTASH_REDIS_REST_URL="https://example.upstash.io"
 UPSTASH_REDIS_REST_TOKEN="..."
