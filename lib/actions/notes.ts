@@ -247,6 +247,89 @@ export async function regeneratePassword(id: string): Promise<ActionResult<{ pla
 }
 
 /**
+ * Server Action: Toggles revocation status of a Note (revoke / unrevoke).
+ */
+export async function toggleRevokeNote(id: string): Promise<ActionResult<Note>> {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' };
+  }
+
+  try {
+    const existing = await prisma.note.findUnique({
+      where: { id },
+    });
+
+    if (!existing || existing.clerkUserId !== userId) {
+      return { success: false, error: 'Note not found or access denied.', code: 'NOT_FOUND' };
+    }
+
+    const newRevokedState = !existing.revoked;
+
+    const updated = await prisma.note.update({
+      where: { id },
+      data: {
+        revoked: newRevokedState,
+        // Reset consumedAt if unrevoking
+        ...(newRevokedState === false && { consumedAt: null }),
+      },
+    });
+
+    // Write-through cache update or invalidation
+    try {
+      if (newRevokedState) {
+        await invalidateNoteCache(updated.token);
+      } else {
+        await writeNoteCache(updated);
+      }
+    } catch {
+      // Best effort
+    }
+
+    return { success: true, data: updated };
+  } catch (err) {
+    console.error('Failed to toggle revoke note:', err);
+    return { success: false, error: 'Failed to update note revocation status.', code: 'DB_ERROR' };
+  }
+}
+
+/**
+ * Server Action: Hard-deletes a Note from the database regardless of its status.
+ */
+export async function deleteNote(id: string): Promise<ActionResult<{ id: string }>> {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' };
+  }
+
+  try {
+    const existing = await prisma.note.findUnique({
+      where: { id },
+    });
+
+    if (!existing || existing.clerkUserId !== userId) {
+      return { success: false, error: 'Note not found or access denied.', code: 'NOT_FOUND' };
+    }
+
+    await prisma.note.delete({
+      where: { id },
+    });
+
+    // Invalidate Redis cache
+    try {
+      await invalidateNoteCache(existing.token);
+    } catch {
+      // Best effort
+    }
+
+    return { success: true, data: { id } };
+  } catch (err) {
+    console.error('Failed to delete note:', err);
+    return { success: false, error: 'Failed to delete note.', code: 'DB_ERROR' };
+  }
+}
+
+/**
  * Server Action: Retrieves all notes owned by current user.
  */
 export async function getUserNotes(): Promise<ActionResult<Note[]>> {
@@ -266,3 +349,4 @@ export async function getUserNotes(): Promise<ActionResult<Note[]>> {
     return { success: false, error: 'Failed to fetch notes.', code: 'DB_ERROR' };
   }
 }
+
