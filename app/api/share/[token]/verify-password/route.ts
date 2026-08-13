@@ -65,13 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   // 4. Issue session cookie on success
   const jwt = await createNoteSessionJwt(note.id, note.createdAt, note.token, note.accessType);
-  await setNoteSessionCookie(token, jwt);
-
-  // 5. Record view analytics for password protected note
-  const { userId: viewerUserId } = await auth();
-  await trackNoteView(token, note.clerkUserId, viewerUserId, ip);
-
-  return NextResponse.json({
+  const response = NextResponse.json({
     success: true,
     data: {
       id: note.id,
@@ -85,4 +79,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       consumedAt: note.consumedAt ? note.consumedAt.toISOString() : null,
     },
   });
+
+  await setNoteSessionCookie(token, jwt, response);
+
+  // 5. Record view analytics for password protected note
+  try {
+    const { userId: viewerUserId } = await auth();
+    await trackNoteView(token, note.clerkUserId, viewerUserId, ip);
+  } catch (err) {
+    console.error('Error tracking password view:', err);
+  }
+
+  return response;
 }

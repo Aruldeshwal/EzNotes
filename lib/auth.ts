@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 const APP_SECRET = process.env.APP_SECRET || 'dev-fallback-secret-at-least-32-chars-long';
@@ -59,18 +60,32 @@ export async function verifyNoteSessionJwt(
   }
 }
 
-/**
- * Helper to set the httpOnly cookie for note access.
- */
-export async function setNoteSessionCookie(token: string, jwt: string): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(`session_${token}`, jwt, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: `/`,
-    maxAge: 300, // 5 minutes
-  });
+export async function setNoteSessionCookie(
+  token: string,
+  jwt: string,
+  response?: NextResponse,
+): Promise<void> {
+  if (response) {
+    response.cookies.set(`session_${token}`, jwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: `/`,
+      maxAge: 300,
+    });
+  }
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(`session_${token}`, jwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: `/`,
+      maxAge: 300,
+    });
+  } catch {
+    // Ignore if response parameter was used
+  }
 }
 
 /**

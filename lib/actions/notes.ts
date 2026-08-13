@@ -26,6 +26,7 @@ export interface UpdateNoteInput {
   shareType?: ShareType;
   accessType?: AccessType;
   expiryDate?: Date | string | null;
+  password?: string;
 }
 
 /**
@@ -150,6 +151,11 @@ export async function updateNote(input: UpdateNoteInput): Promise<ActionResult<N
       }
     }
 
+    let passwordHash: string | undefined = undefined;
+    if (input.password && input.password.trim().length > 0) {
+      passwordHash = await hashPassword(input.password);
+    }
+
     const updated = await prisma.note.update({
       where: { id: input.id },
       data: {
@@ -158,6 +164,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<ActionResult<N
         ...(input.shareType !== undefined && { shareType: input.shareType }),
         ...(input.accessType !== undefined && { accessType: input.accessType }),
         ...(expiryDate !== undefined && { expiryDate }),
+        ...(passwordHash !== undefined && { passwordHash }),
       },
     });
 

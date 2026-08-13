@@ -54,16 +54,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     // Invalidate Redis cache immediately
     await invalidateNoteCache(token);
 
-    // Issue short-lived JWT session cookie (httpOnly)
     const jwt = await createNoteSessionJwt(note.id, note.created_at, note.token, note.access_type);
-    await setNoteSessionCookie(token, jwt);
 
-    // Track view analytics for one time consumption
-    const { userId: viewerUserId } = await auth();
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
-    await trackNoteView(token, note.clerk_user_id, viewerUserId, ip);
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         id: note.id,
@@ -78,6 +71,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
           : new Date().toISOString(),
       },
     });
+
+    await setNoteSessionCookie(token, jwt, response);
+
+    // Track view analytics for one time consumption
+    try {
+      const { userId: viewerUserId } = await auth();
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+      await trackNoteView(token, note.clerk_user_id, viewerUserId, ip);
+    } catch (err) {
+      console.error('Error tracking one-time view:', err);
+    }
+
+    return response;
   } catch (err) {
     console.error('Error consuming one-time note:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
