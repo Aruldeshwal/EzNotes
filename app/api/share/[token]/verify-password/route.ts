@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
 import { checkLockout, recordPasswordFailure, readNoteCache } from '@/lib/redis';
 import { verifyPassword } from '@/lib/password';
 import { createNoteSessionJwt, setNoteSessionCookie } from '@/lib/auth';
+import { trackNoteView } from '@/lib/analytics';
 import { AccessType } from '@prisma/client';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ token: string }> },
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
 
@@ -67,6 +66,10 @@ export async function POST(
   // 4. Issue session cookie on success
   const jwt = await createNoteSessionJwt(note.id, note.createdAt, note.token, note.accessType);
   await setNoteSessionCookie(token, jwt);
+
+  // 5. Record view analytics for password protected note
+  const { userId: viewerUserId } = await auth();
+  await trackNoteView(token, note.clerkUserId, viewerUserId, ip);
 
   return NextResponse.json({
     success: true,

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
 import { acquireOneTimeLock, invalidateNoteCache } from '@/lib/redis';
 import { createNoteSessionJwt, setNoteSessionCookie } from '@/lib/auth';
+import { trackNoteView } from '@/lib/analytics';
 import { AccessType, ShareType } from '@prisma/client';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ token: string }> },
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
   if (!token) {
@@ -32,18 +31,22 @@ export async function POST(
         content: string;
         title: string;
         consumed_at: Date;
+        clerk_user_id: string;
       }>
     >`
       UPDATE notes
       SET revoked = true, consumed_at = NOW()
       WHERE token = ${token} AND revoked = false AND access_type = 'ONE_TIME'::"AccessType"
-      RETURNING id, token, created_at, access_type, share_type, content, title, consumed_at
+      RETURNING id, token, created_at, access_type, share_type, content, title, consumed_at, clerk_user_id
     `;
 
     if (!updatedNotes || updatedNotes.length === 0) {
       // Losing request under concurrent race condition or already consumed
       await invalidateNoteCache(token);
-      return NextResponse.json({ error: 'Note has already been viewed and destroyed.' }, { status: 410 });
+      return NextResponse.json(
+        { error: 'Note has already been viewed and destroyed.' },
+        { status: 410 },
+      );
     }
 
     const note = updatedNotes[0];
@@ -55,6 +58,11 @@ export async function POST(
     const jwt = await createNoteSessionJwt(note.id, note.created_at, note.token, note.access_type);
     await setNoteSessionCookie(token, jwt);
 
+    // Track view analytics for one time consumption
+    const { userId: viewerUserId } = await auth();
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+    await trackNoteView(token, note.clerk_user_id, viewerUserId, ip);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -65,7 +73,9 @@ export async function POST(
         shareType: note.share_type as ShareType,
         accessType: AccessType.ONE_TIME,
         revoked: true,
-        consumedAt: note.consumed_at ? new Date(note.consumed_at).toISOString() : new Date().toISOString(),
+        consumedAt: note.consumed_at
+          ? new Date(note.consumed_at).toISOString()
+          : new Date().toISOString(),
       },
     });
   } catch (err) {

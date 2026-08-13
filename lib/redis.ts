@@ -28,9 +28,7 @@ function deleteMemory(key: string): void {
 }
 
 export const redis =
-  url && token && !url.includes('example.upstash.io')
-    ? new Redis({ url, token })
-    : null;
+  url && token && !url.includes('example.upstash.io') ? new Redis({ url, token }) : null;
 
 // --- Key Builders ---
 export const RedisKeys = {
@@ -116,7 +114,10 @@ export async function checkLockout(noteToken: string, ip: string): Promise<boole
   }
 }
 
-export async function recordPasswordFailure(noteToken: string, ip: string): Promise<{ fails: number; isLockedOut: boolean }> {
+export async function recordPasswordFailure(
+  noteToken: string,
+  ip: string,
+): Promise<{ fails: number; isLockedOut: boolean }> {
   const failKey = RedisKeys.fails(noteToken, ip);
   const lockoutKey = RedisKeys.lockout(noteToken, ip);
 
@@ -131,7 +132,7 @@ export async function recordPasswordFailure(noteToken: string, ip: string): Prom
       return { fails, isLockedOut: true };
     }
   } else {
-    const current = (getMemory(failKey) as number || 0) + 1;
+    const current = ((getMemory(failKey) as number) || 0) + 1;
     setMemory(failKey, current, 60);
     fails = current;
     if (fails >= 5) {
@@ -145,7 +146,11 @@ export async function recordPasswordFailure(noteToken: string, ip: string): Prom
 
 // --- View Analytics Helpers ---
 
-export async function recordViewCount(noteToken: string, dateStr: string, viewerId: string): Promise<boolean> {
+export async function recordViewCount(
+  noteToken: string,
+  dateStr: string,
+  viewerId: string,
+): Promise<boolean> {
   const dedupKey = RedisKeys.viewed(noteToken);
   const viewsKey = RedisKeys.noteViews(noteToken);
   const dailyKey = RedisKeys.noteDailyViews(noteToken, dateStr);
@@ -168,12 +173,22 @@ export async function recordViewCount(noteToken: string, dateStr: string, viewer
     }
     if (!set.has(viewerId)) {
       set.add(viewerId);
-      const v = (getMemory(viewsKey) as number || 0) + 1;
-      const dv = (getMemory(dailyKey) as number || 0) + 1;
+      const v = ((getMemory(viewsKey) as number) || 0) + 1;
+      const dv = ((getMemory(dailyKey) as number) || 0) + 1;
       setMemory(viewsKey, v);
       setMemory(dailyKey, dv, 93600);
       return true;
     }
     return false;
+  }
+}
+
+export async function getPendingViews(noteToken: string): Promise<number> {
+  const viewsKey = RedisKeys.noteViews(noteToken);
+  if (redis) {
+    const val = await redis.get<string | number>(viewsKey);
+    return typeof val === 'number' ? val : parseInt(val || '0', 10);
+  } else {
+    return (getMemory(viewsKey) as number) || 0;
   }
 }

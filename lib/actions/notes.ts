@@ -6,7 +6,7 @@ import { generateShareToken } from '@/lib/tokens';
 import { hashPassword } from '@/lib/password';
 import { ActionResult } from '@/lib/types';
 import { AccessType, ShareType, Note } from '@prisma/client';
-import { invalidateNoteCache, writeNoteCache } from '@/lib/redis';
+import { invalidateNoteCache, writeNoteCache, getPendingViews } from '@/lib/redis';
 
 const MAX_CONTENT_LENGTH = 100_000;
 
@@ -35,7 +35,11 @@ export interface UpdateNoteInput {
 export async function createNote(input: CreateNoteInput): Promise<ActionResult<Note>> {
   const { userId } = await auth();
   if (!userId) {
-    return { success: false, error: 'Unauthorized: You must be logged in to create a note.', code: 'UNAUTHORIZED' };
+    return {
+      success: false,
+      error: 'Unauthorized: You must be logged in to create a note.',
+      code: 'UNAUTHORIZED',
+    };
   }
 
   if (!input.title || input.title.trim().length === 0) {
@@ -57,7 +61,11 @@ export async function createNote(input: CreateNoteInput): Promise<ActionResult<N
   let passwordHash: string | null = null;
   if (accessType === AccessType.PASSWORD) {
     if (!input.password || input.password.trim().length === 0) {
-      return { success: false, error: 'Password is required for password-protected notes.', code: 'INVALID_INPUT' };
+      return {
+        success: false,
+        error: 'Password is required for password-protected notes.',
+        code: 'INVALID_INPUT',
+      };
     }
     passwordHash = await hashPassword(input.password);
   }
@@ -94,7 +102,11 @@ export async function createNote(input: CreateNoteInput): Promise<ActionResult<N
     return { success: true, data: note };
   } catch (err) {
     console.error('Failed to create note:', err);
-    return { success: false, error: 'Failed to create note due to a database error.', code: 'DB_ERROR' };
+    return {
+      success: false,
+      error: 'Failed to create note due to a database error.',
+      code: 'DB_ERROR',
+    };
   }
 }
 
@@ -343,10 +355,20 @@ export async function getUserNotes(): Promise<ActionResult<Note[]>> {
       where: { clerkUserId: userId },
       orderBy: { createdAt: 'desc' },
     });
-    return { success: true, data: notes };
+
+    const notesWithLiveViews = await Promise.all(
+      notes.map(async (note) => {
+        const pending = await getPendingViews(note.token);
+        return {
+          ...note,
+          viewCount: note.viewCount + pending,
+        };
+      }),
+    );
+
+    return { success: true, data: notesWithLiveViews };
   } catch (err) {
     console.error('Failed to fetch user notes:', err);
     return { success: false, error: 'Failed to fetch notes.', code: 'DB_ERROR' };
   }
 }
-
