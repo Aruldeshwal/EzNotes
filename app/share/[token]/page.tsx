@@ -5,10 +5,16 @@ import { ShareViewerMachine } from '@/components/ShareViewerMachine';
 import { trackNoteView } from '@/lib/analytics';
 import { headers } from 'next/headers';
 import { AccessType } from '@prisma/client';
+import { redirect } from 'next/navigation';
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const { userId } = await auth();
+
+  // Redirect to login if user is not signed in
+  if (!userId) {
+    redirect(`/login?redirect_url=/share/${token}`);
+  }
 
   const reqHeaders = await headers();
   const ip = reqHeaders.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
@@ -22,7 +28,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     }
   }
 
-  const isOwner = Boolean(userId && note && note.clerkUserId === userId);
+  const isOwner = Boolean(note && note.clerkUserId === userId);
 
   // Track view if note exists, is public/read-only, and not password/one-time locked
   if (note && !note.revoked && note.accessType === AccessType.PUBLIC) {
