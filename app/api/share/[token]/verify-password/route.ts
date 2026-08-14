@@ -64,7 +64,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   // 4. Clear brute-force counters on successful verification
   await clearPasswordFailures(token, ip);
 
-  // 5. Issue session cookie on success
+  // 5. Record view analytics for password protected note (best effort)
+  let viewerUserId: string | null = null;
+  try {
+    const authObj = await auth();
+    viewerUserId = authObj.userId;
+  } catch {
+    // Unauthenticated viewer
+  }
+
+  try {
+    await trackNoteView(token, note.clerkUserId, viewerUserId, ip);
+  } catch (err) {
+    console.error('Error tracking password view:', err);
+  }
+
+  // 6. Issue session cookie on success
   const jwt = await createNoteSessionJwt(note.id, note.createdAt, note.token, note.accessType);
   const response = NextResponse.json({
     success: true,
@@ -82,14 +97,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   });
 
   await setNoteSessionCookie(token, jwt, response);
-
-  // 5. Record view analytics for password protected note
-  try {
-    const { userId: viewerUserId } = await auth();
-    await trackNoteView(token, note.clerkUserId, viewerUserId, ip);
-  } catch (err) {
-    console.error('Error tracking password view:', err);
-  }
 
   return response;
 }

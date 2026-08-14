@@ -65,26 +65,21 @@ export async function setNoteSessionCookie(
   jwt: string,
   response?: NextResponse,
 ): Promise<void> {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: `/`,
+    maxAge: 300,
+  };
+
   if (response) {
-    response.cookies.set(`session_${token}`, jwt, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: `/`,
-      maxAge: 300,
-    });
-  }
-  try {
+    // Route Handler path: set cookie directly on the response object
+    response.cookies.set(`session_${token}`, jwt, cookieOptions);
+  } else {
+    // Server Action / Server Component path: use cookies() API
     const cookieStore = await cookies();
-    cookieStore.set(`session_${token}`, jwt, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: `/`,
-      maxAge: 300,
-    });
-  } catch {
-    // Ignore if response parameter was used
+    cookieStore.set(`session_${token}`, jwt, cookieOptions);
   }
 }
 

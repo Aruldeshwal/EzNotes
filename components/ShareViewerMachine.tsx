@@ -37,6 +37,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
 
   // Collaborative Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -122,23 +123,30 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
+    setIsVerifyingPassword(true);
 
-    const res = await fetch(`/api/share/${token}/verify-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
+    try {
+      const res = await fetch(`/api/share/${token}/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
 
-    if (res.ok) {
-      const body = await res.json();
-      setNote(body.data);
-      setEditedContent(body.data.content);
-      setErrorStatus(null);
-    } else if (res.status === 403) {
-      setPasswordError('Too many failed attempts. Locked out for 15 minutes.');
-      setLockoutSeconds(900);
-    } else {
-      setPasswordError('Incorrect password. Please try again.');
+      if (res.ok) {
+        const body = await res.json();
+        setNote(body.data);
+        setEditedContent(body.data.content);
+        setErrorStatus(null);
+      } else if (res.status === 403) {
+        setPasswordError('Too many failed attempts. Locked out for 15 minutes.');
+        setLockoutSeconds(900);
+      } else {
+        setPasswordError('Incorrect password. Please try again.');
+      }
+    } catch {
+      setPasswordError('Failed to connect to server. Please try again.');
+    } finally {
+      setIsVerifyingPassword(false);
     }
   };
 
@@ -282,10 +290,10 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
 
           <button
             type="submit"
-            disabled={Boolean(lockoutSeconds)}
-            className="w-full py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+            disabled={Boolean(lockoutSeconds) || isVerifyingPassword}
+            className="w-full py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Unlock Note
+            {isVerifyingPassword ? 'Unlocking...' : 'Unlock Note'}
           </button>
         </form>
       </div>
