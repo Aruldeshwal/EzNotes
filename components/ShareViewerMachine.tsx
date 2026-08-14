@@ -197,8 +197,12 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
         <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Note Not Found</h2>
-        <p className="text-sm text-slate-500">The share link is invalid or may have been deleted by the owner.</p>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+          Note Not Found
+        </h2>
+        <p className="text-sm text-slate-500">
+          The share link is invalid or may have been deleted by the owner.
+        </p>
       </div>
     );
   }
@@ -268,6 +272,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
             <input
               type="password"
               placeholder="Enter note password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={Boolean(lockoutSeconds)}
@@ -294,7 +299,9 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
         <div className="w-12 h-12 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <ShieldAlert className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">One-Time Self-Destruct Note</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+          One-Time Self-Destruct Note
+        </h2>
         <p className="text-sm text-slate-500 mb-6">
           Viewing this note will immediately consume the link. It cannot be opened a second time.
         </p>
@@ -317,7 +324,9 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{note?.title}</h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-              {note?.shareType === ShareType.COLLABORATIVE ? 'Collaborative Note' : 'Read-Only Note'}
+              {note?.shareType === ShareType.COLLABORATIVE
+                ? 'Collaborative Note'
+                : 'Read-Only Note'}
             </span>
             {isOwner && (
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600">

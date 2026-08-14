@@ -144,6 +144,18 @@ export async function recordPasswordFailure(
   return { fails, isLockedOut: false };
 }
 
+export async function clearPasswordFailures(noteToken: string, ip: string): Promise<void> {
+  const failKey = RedisKeys.fails(noteToken, ip);
+  const lockoutKey = RedisKeys.lockout(noteToken, ip);
+  if (redis) {
+    await redis.del(failKey);
+    await redis.del(lockoutKey);
+  } else {
+    deleteMemory(failKey);
+    deleteMemory(lockoutKey);
+  }
+}
+
 // --- View Analytics Helpers ---
 
 export async function recordViewCount(

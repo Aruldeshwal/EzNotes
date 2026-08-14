@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
-import { checkLockout, recordPasswordFailure, readNoteCache } from '@/lib/redis';
+import {
+  checkLockout,
+  recordPasswordFailure,
+  clearPasswordFailures,
+  readNoteCache,
+} from '@/lib/redis';
 import { verifyPassword } from '@/lib/password';
 import { createNoteSessionJwt, setNoteSessionCookie } from '@/lib/auth';
 import { trackNoteView } from '@/lib/analytics';
@@ -63,7 +68,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
   }
 
-  // 4. Issue session cookie on success
+  // 4. Clear brute-force counters on successful verification
+  await clearPasswordFailures(token, ip);
+
+  // 5. Issue session cookie on success
   const jwt = await createNoteSessionJwt(note.id, note.createdAt, note.token, note.accessType);
   const response = NextResponse.json({
     success: true,
