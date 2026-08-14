@@ -38,6 +38,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
   // Collaborative Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -54,11 +55,16 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
         setErrorStatus(410);
         setConsumedAt(body.consumedAt || null);
       } else if (res.status === 401) {
-        setErrorStatus(401);
+        if (!isUnlocked) {
+          setErrorStatus(401);
+        }
       } else if (res.ok) {
         const data: ShareNoteData = await res.json();
         setNote(data);
-        setEditedContent(data.content);
+        setEditedContent(data.content || '');
+        if (data.content) {
+          setIsUnlocked(true);
+        }
         setErrorStatus(null);
       }
     } catch {
@@ -135,7 +141,8 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
       if (res.ok) {
         const body = await res.json();
         setNote(body.data);
-        setEditedContent(body.data.content);
+        setEditedContent(body.data.content || '');
+        setIsUnlocked(true);
         setErrorStatus(null);
       } else if (res.status === 403) {
         setPasswordError('Too many failed attempts. Locked out for 15 minutes.');
@@ -251,7 +258,10 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   }
 
   // 5. Password Gateway State
-  if (errorStatus === 401 || (note?.accessType === AccessType.PASSWORD && !note.content)) {
+  if (
+    !isUnlocked &&
+    (errorStatus === 401 || (note?.accessType === AccessType.PASSWORD && !note.content))
+  ) {
     return (
       <div className="max-w-md mx-auto p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
         <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950/40 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
