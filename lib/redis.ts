@@ -204,3 +204,13 @@ export async function getPendingViews(noteToken: string): Promise<number> {
     return (getMemory(viewsKey) as number) || 0;
   }
 }
+
+export async function getPendingDailyViews(noteToken: string, dateStr: string): Promise<number> {
+  const dailyKey = RedisKeys.noteDailyViews(noteToken, dateStr);
+  if (redis) {
+    const val = await redis.get<string | number>(dailyKey);
+    return typeof val === 'number' ? val : parseInt(val || '0', 10);
+  } else {
+    return (getMemory(dailyKey) as number) || 0;
+  }
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
-import { getPendingViews } from '@/lib/redis';
+import { getPendingViews, getPendingDailyViews } from '@/lib/redis';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
@@ -35,14 +35,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     orderBy: { date: 'asc' },
   });
 
+  // Group by YYYY-MM-DD
+  const dateMap = new Map<string, number>();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    dateMap.set(dateStr, 0);
+  }
+
+  for (const item of dailyAggregates) {
+    const dateStr = item.date.toISOString().split('T')[0];
+    if (dateMap.has(dateStr)) {
+      dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + item.viewCount);
+    }
+  }
+
+  for (const dateStr of dateMap.keys()) {
+    const pendingDaily = await getPendingDailyViews(note.token, dateStr);
+    dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + pendingDaily);
+  }
+
+  const chartData = Array.from(dateMap.entries())
+    .map(([date, views]) => ({ date, views }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return NextResponse.json({
     noteId: note.id,
     token: note.token,
     title: note.title,
     lifetimeViews: note.viewCount + pending,
-    dailyAggregates: dailyAggregates.map((item) => ({
-      date: item.date.toISOString().split('T')[0],
-      views: item.viewCount,
-    })),
+    dailyAggregates: chartData,
   });
 }

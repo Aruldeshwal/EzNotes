@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
-import { getPendingViews } from '@/lib/redis';
+import { getPendingViews, getPendingDailyViews } from '@/lib/redis';
 import { NotesTable } from '@/components/NotesTable';
 import { AnalyticsCharts } from '@/components/AnalyticsCharts';
 import Link from 'next/link';
@@ -56,6 +56,15 @@ export default async function NotesDashboardPage() {
         if (dateMap.has(dateStr)) {
           dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + agg.viewCount);
         }
+      }
+
+      // Merge real-time pending daily views from Redis
+      for (const dateStr of dateMap.keys()) {
+        const pendingForDate = await Promise.all(
+          userTokens.map((token) => getPendingDailyViews(token, dateStr)),
+        );
+        const totalPending = pendingForDate.reduce((sum, count) => sum + count, 0);
+        dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + totalPending);
       }
 
       dailyAggregates = Array.from(dateMap.entries())
