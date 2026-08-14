@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
-import {
-  checkLockout,
-  recordPasswordFailure,
-  clearPasswordFailures,
-  readNoteCache,
-} from '@/lib/redis';
+import { checkLockout, recordPasswordFailure, clearPasswordFailures } from '@/lib/redis';
 import { verifyPassword } from '@/lib/password';
 import { createNoteSessionJwt, setNoteSessionCookie } from '@/lib/auth';
 import { trackNoteView } from '@/lib/analytics';
@@ -36,11 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'Password is required' }, { status: 400 });
   }
 
-  // 2. Fetch note from Redis cache or DB
-  let note = await readNoteCache(token);
-  if (!note) {
-    note = await prisma.note.findUnique({ where: { token } });
-  }
+  // 2. Always fetch from DB for password verification (never cache — bcrypt hashes
+  //    can be corrupted by Upstash auto-deserialization of $ characters)
+  const note = await prisma.note.findUnique({ where: { token } });
 
   if (!note) {
     return NextResponse.json({ error: 'Note not found' }, { status: 404 });
