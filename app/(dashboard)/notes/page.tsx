@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
+import { getPendingViews } from '@/lib/redis';
 import { NotesTable } from '@/components/NotesTable';
 import { AnalyticsCharts } from '@/components/AnalyticsCharts';
 import Link from 'next/link';
@@ -12,10 +13,20 @@ export default async function NotesDashboardPage() {
   let dailyAggregates: Array<{ date: string; views: number }> = [];
 
   if (userId) {
-    notes = await prisma.note.findMany({
+    const rawNotes = await prisma.note.findMany({
       where: { clerkUserId: userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    notes = await Promise.all(
+      rawNotes.map(async (n) => {
+        const pending = await getPendingViews(n.token);
+        return {
+          ...n,
+          viewCount: n.viewCount + pending,
+        };
+      }),
+    );
 
     lifetimeViews = notes.reduce((acc, note) => acc + note.viewCount, 0);
 
@@ -61,7 +72,8 @@ export default async function NotesDashboardPage() {
             Notes Dashboard
           </h1>
           <p className="text-sm text-slate-500">
-            Manage your shared notes, configure expiration & security parameters, and monitor analytics.
+            Manage your shared notes, configure expiration & security parameters, and monitor
+            analytics.
           </p>
         </div>
 
@@ -80,7 +92,9 @@ export default async function NotesDashboardPage() {
       />
 
       <div>
-        <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-slate-100">Your Shared Notes</h2>
+        <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-slate-100">
+          Your Shared Notes
+        </h2>
         <NotesTable initialNotes={notes} />
       </div>
     </div>
