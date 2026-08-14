@@ -39,6 +39,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isConsumedLocally, setIsConsumedLocally] = useState(false);
 
   // Collaborative Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -51,9 +52,11 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
       if (res.status === 404) {
         setErrorStatus(404);
       } else if (res.status === 410) {
-        const body = await res.json();
-        setErrorStatus(410);
-        setConsumedAt(body.consumedAt || null);
+        if (!isConsumedLocally) {
+          const body = await res.json();
+          setErrorStatus(410);
+          setConsumedAt(body.consumedAt || null);
+        }
       } else if (res.status === 401) {
         if (!isUnlocked) {
           setErrorStatus(401);
@@ -160,20 +163,26 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   // One-Time Consume handler
   const handleConsumeOneTime = async () => {
     setLoading(true);
-    const res = await fetch(`/api/share/${token}/consume-one-time`, {
-      method: 'POST',
-    });
+    try {
+      const res = await fetch(`/api/share/${token}/consume-one-time`, {
+        method: 'POST',
+      });
 
-    if (res.ok) {
-      const body = await res.json();
-      setNote(body.data);
-      setEditedContent(body.data.content);
-      setErrorStatus(null);
-    } else {
-      setErrorStatus(410);
-      setConsumedAt(new Date().toISOString());
+      if (res.ok) {
+        const body = await res.json();
+        setNote(body.data);
+        setEditedContent(body.data.content || '');
+        setIsConsumedLocally(true);
+        setErrorStatus(null);
+      } else {
+        setErrorStatus(410);
+        setConsumedAt(new Date().toISOString());
+      }
+    } catch {
+      setErrorStatus(500);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Collaborative Patch handler
@@ -223,7 +232,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   }
 
   // 3. Gone (410) State — Distinguishes Revoked vs Consumed
-  if ((errorStatus === 410 || note?.revoked) && !note?.content) {
+  if (!isConsumedLocally && (errorStatus === 410 || note?.revoked)) {
     const isConsumed = Boolean(consumedAt || note?.consumedAt);
     return (
       <div className="max-w-md mx-auto p-8 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
@@ -311,7 +320,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
   }
 
   // 6. One-Time View Gateway Prompt (if not yet consumed)
-  if (note?.accessType === AccessType.ONE_TIME && !note.content) {
+  if (!isConsumedLocally && note?.accessType === AccessType.ONE_TIME) {
     return (
       <div className="max-w-md mx-auto p-8 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
         <div className="w-12 h-12 bg-red-50 dark:bg-red-950/40 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -326,9 +335,10 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
 
         <button
           onClick={handleConsumeOneTime}
-          className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors"
+          disabled={loading}
+          className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          View Note Now
+          {loading ? 'Consuming Note...' : 'View Note Now'}
         </button>
       </div>
     );
