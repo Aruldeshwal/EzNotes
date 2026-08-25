@@ -75,7 +75,7 @@ export const ShareViewerMachine: React.FC<ShareViewerMachineProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, isConsumedLocally, isUnlocked]);
 
   useEffect(() => {
     let isMounted = true;
